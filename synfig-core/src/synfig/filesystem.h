@@ -80,7 +80,7 @@ namespace synfig
 			char buffer_;
 
 			ReadStream(FileSystem::Handle file_system);
-			virtual int underflow();
+			int underflow() override;
 			virtual size_t internal_read(void *buffer, size_t size) = 0;
 
 		public:
@@ -102,7 +102,7 @@ namespace synfig
 
 		protected:
 			WriteStream(FileSystem::Handle file_system);
-	        virtual int overflow(int ch);
+			int overflow(int ch) override;
 			virtual size_t internal_write(const void *buffer, size_t size) = 0;
 
 		public:
@@ -197,7 +197,7 @@ namespace synfig
 		Identifier get_identifier(const String &filename) { return Identifier(this, filename); }
 
 		bool directory_create_recursive(const String &dirname);
-		bool remove_recursive(const String &filename);
+		bool remove_recursive(const filesystem::Path& filename);
 
 		static bool copy(Handle from_file_system, const String &from_filename, Handle to_file_system, const String &to_filename);
 		static bool copy_recursive(Handle from_file_system, const String &from_filename, Handle to_file_system, const String &to_filename);

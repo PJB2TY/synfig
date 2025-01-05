@@ -33,7 +33,6 @@
 #endif
 
 #include <glibmm.h>
-#include <cstdio>
 
 #include "filesystem.h"
 
@@ -77,7 +76,7 @@ FileSystem::ReadStream::ReadStream(FileSystem::Handle file_system):
 int FileSystem::ReadStream::underflow()
 {
 	if (gptr() < egptr()) return std::streambuf::traits_type::to_int_type(*gptr());
-	if (sizeof(buffer_) != internal_read(&buffer_, sizeof(buffer_))) return EOF;
+	if (sizeof(buffer_) != internal_read(&buffer_, sizeof(buffer_))) return std::streambuf::traits_type::eof();
 	setg(&buffer_, &buffer_, &buffer_ + 1);
 	return std::streambuf::traits_type::to_int_type(*gptr());
 }
@@ -93,7 +92,8 @@ int
 FileSystem::WriteStream::overflow(int character)
 {
 	char c = std::streambuf::traits_type::to_char_type(character);
-	return character != EOF && sizeof(c) == internal_write(&c, sizeof(c)) ? character : EOF;
+	const int eof = std::streambuf::traits_type::eof();
+	return character != eof && sizeof(c) == internal_write(&c, sizeof(c)) ? character : eof;
 }
 
 // Identifier
@@ -127,21 +127,21 @@ bool FileSystem::directory_create_recursive(const String &dirname) {
 		|| (directory_create_recursive(filesystem::Path::dirname(dirname)) && directory_create(dirname));
 }
 
-bool FileSystem::remove_recursive(const String &filename)
+bool FileSystem::remove_recursive(const filesystem::Path& filename)
 {
 	assert(!filename.empty());
 
 	if (filename.empty())
 		return false;
-	if (is_file(filename))
-		return file_remove(filename);
-	if (is_directory(filename))
+	if (is_file(filename.u8string()))
+		return file_remove(filename.u8string());
+	if (is_directory(filename.u8string()))
 	{
 		FileList files;
-		directory_scan(filename, files);
+		directory_scan(filename.u8string(), files);
 		bool success = true;
-		for(FileList::const_iterator i = files.begin(); i != files.end(); ++i)
-			if (!remove_recursive(filename + ETL_DIRECTORY_SEPARATOR + *i))
+		for (const auto& i : files)
+			if (!remove_recursive(filename / i))
 				success = false;
 		return success;
 	}
@@ -222,7 +222,7 @@ FileSystem::safe_get_line(std::istream& is, String& t)
 			if(sb->sgetc() == '\n')
 				sb->sbumpc();
 			return is;
-		case EOF:
+		case std::streambuf::traits_type::eof():
 			// Also handle the case when the last line has no line ending
 			if(t.empty())
 				is.setstate(std::ios::eofbit);
