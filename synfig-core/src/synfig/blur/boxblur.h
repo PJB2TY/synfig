@@ -42,7 +42,7 @@ namespace synfig {
 /**
  * Blur every row of a sample block based only on the samples of the same horizontal line.
  *
- * The formula for a blured sample is: ?
+ * The formula for a blurred sample is: ?
  *
  * @param pen the initial point of the sample block
  * @param w the block width
@@ -65,7 +65,7 @@ hbox_blur(T1 pen,int w, int h, int length, T2 outpen)
 		iter=pen.x();
 		end=pen.end_x();
 
-		typename T1::value_type tot((*iter)*(length+1));
+		auto tot((*iter)*(length+1));
 
 		for (x=0;x<length && iter!=end;x++,++iter) tot+=*iter;
 		iter=pen.x();
@@ -88,7 +88,7 @@ hbox_blur(T1 pen,int w, int h, int length, T2 outpen)
 /**
  * Blur every column of a sample block based only on the samples of the same vertical line.
  *
- * The formula for a blured sample is: ?
+ * The formula for a blurred sample is: ?
  *
  * @param pen the initial point of the sample block
  * @param w the block width
@@ -111,7 +111,7 @@ vbox_blur(T1 pen,const int w, const int h, int length, T2 outpen)
 		iter=pen.y();
 		end=pen.end_y();
 
-		typename T1::value_type tot((*iter)*(length+1));
+		auto tot((*iter)*(length+1));
 
 		for (y=0;y<length && iter!=end;y++,++iter) tot+=*iter;
 		iter=pen.y();

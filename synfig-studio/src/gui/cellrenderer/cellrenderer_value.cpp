@@ -252,6 +252,15 @@ bool get_paragraph(synfig::String& text)
 	return App::dialog_paragraph(_("Text Paragraph"), _("Enter text here:"), text);
 }
 
+static bool
+is_layer_deleted(const synfig::Layer::ConstHandle& layer)
+{
+	if (Canvas::LooseHandle layer_canvas = layer->get_canvas())
+		return std::find(layer_canvas->begin(), layer_canvas->end(), layer) == layer_canvas->end();
+
+	return true;
+}
+
 /* === M E T H O D S ======================================================= */
 
 CellRenderer_ValueBase::CellRenderer_ValueBase():
@@ -284,6 +293,12 @@ CellRenderer_ValueBase::~CellRenderer_ValueBase()
 {
 	DEBUG_LOG("SYNFIG_DEBUG_DESTRUCTORS",
 		"CellRenderer_ValueBase::~CellRenderer_ValueBase(): Deleted");
+}
+
+void
+CellRenderer_ValueBase::set_canvas_interface(const etl::loose_handle<synfigapp::CanvasInterface>& x)
+{
+	canvas_interface = x;
 }
 
 void
@@ -558,19 +573,96 @@ CellRenderer_ValueBase::activate_vfunc(	GdkEvent* event,
 void
 CellRenderer_ValueBase::gradient_edited(synfig::Gradient gradient, Glib::ustring path)
 {
-	ValueBase old_value(property_value_.get_value());
-	ValueBase value(gradient);
-	if (old_value != value)
-		signal_edited_(path, value);
+	synfigapp::ValueDesc vd = App::dialog_gradient->get_value_desc();
+	if (!vd.is_valid()) {
+		ValueBase old_value(property_value_.get_value());
+		ValueBase value(gradient);
+		if (old_value != value)
+			signal_edited_(path, value);
+
+		return;
+	}
+
+	if (!vd.parent_is_layer()) {
+		canvas_interface->change_value(vd, gradient);
+		return;
+	}
+
+	if (is_layer_deleted(vd.get_layer()))
+		return;
+
+	// do not emit signal_edited_ : gradient dialog may be opened by other cell
+	// and would try to update the parameter related to current one
+	// as it just remembered its parameter tree path
+	// Example:
+	// 1. Create a region layer
+	// 2. Create a gradient layer
+	// 3. Click on gradient parameter to edit it
+	// 4. Without closing gradient dialog, select the region layer instead
+	// 5. Try to edit the gradient
+	// 6. Error Message appears
+	synfigapp::SelectionManager::LayerList selected_layers = canvas_interface->get_selection_manager()->get_selected_layers();
+	const Layer::Handle& trigger_layer = vd.get_layer();
+	bool is_trigger_layer_still_selected = std::find(selected_layers.begin(), selected_layers.end(), trigger_layer) != selected_layers.end();
+	if (!is_trigger_layer_still_selected)
+		return;
+
+	if (selected_layers.size() <= 1) {
+		canvas_interface->change_value(vd, gradient);
+	} else {
+		synfigapp::Action::PassiveGrouper set_multiple_color_action(canvas_interface->get_instance().get(), strprintf(_("Set Layer Gradients (%d)"), selected_layers.size()));
+		for (const auto& layer : selected_layers) {
+			canvas_interface->change_value(synfigapp::ValueDesc(layer, vd.get_param_name()), gradient);
+		}
+	}
 }
 
 void
 CellRenderer_ValueBase::color_edited(synfig::Color color, Glib::ustring path)
 {
-	ValueBase old_value(property_value_.get_value());
-	ValueBase value(color);
-	if (old_value != value)
-		signal_edited_(path, value);
+	synfigapp::ValueDesc vd = App::dialog_color->get_value_desc();
+	if (!vd.is_valid()) {
+		ValueBase old_value(property_value_.get_value());
+		ValueBase value(color);
+		if (old_value != value)
+			signal_edited_(path, value);
+
+		return;
+	}
+
+	if (!vd.parent_is_layer()) {
+		canvas_interface->change_value(vd, color);
+		return;
+	}
+
+	if (is_layer_deleted(vd.get_layer()))
+		return;
+
+	// do not emit signal_edited_ : color dialog may be opened by other cell
+	// and would try to update the parameter related to current one
+	// as it just remembered its parameter tree path
+	// Example:
+	// 1. Create a region layer
+	// 2. Create an outline layer
+	// 3. Click on color parameter to edit it
+	// 4. Without closing color dialog, select the region layer instead
+	// 5. Try to edit the color
+	// 6. Error Message appears
+
+	synfigapp::SelectionManager::LayerList selected_layers = canvas_interface->get_selection_manager()->get_selected_layers();
+	const Layer::Handle& trigger_layer = vd.get_layer();
+	bool is_trigger_layer_still_selected = std::find(selected_layers.begin(), selected_layers.end(), trigger_layer) != selected_layers.end();
+	if (!is_trigger_layer_still_selected)
+		return;
+
+	if (selected_layers.size() <= 1) {
+		canvas_interface->change_value(vd, color);
+	} else {
+		synfigapp::Action::PassiveGrouper set_multiple_color_action(canvas_interface->get_instance().get(), strprintf(_("Set Layer Colors (%d)"), selected_layers.size()));
+		for (const auto& layer : selected_layers) {
+			canvas_interface->change_value(synfigapp::ValueDesc(layer, vd.get_param_name()), color);
+		}
+	}
 }
 
 Gtk::CellEditable*
@@ -608,6 +700,7 @@ CellRenderer_ValueBase::start_editing_vfunc(
 	{
 		App::dialog_gradient->reset();
 		App::dialog_gradient->set_gradient( data.get(Gradient()) );
+		App::dialog_gradient->set_value_desc(get_value_desc());
 		App::dialog_gradient->signal_edited().connect(
 			sigc::bind(
 				sigc::mem_fun(*this, &studio::CellRenderer_ValueBase::gradient_edited),
@@ -623,6 +716,7 @@ CellRenderer_ValueBase::start_editing_vfunc(
 	{
 		App::dialog_color->reset();
 		App::dialog_color->set_color( data.get(Color()) );
+		App::dialog_color->set_value_desc(get_value_desc());
 		App::dialog_color->signal_edited().connect(
 			sigc::bind(
 				sigc::mem_fun(*this, &studio::CellRenderer_ValueBase::color_edited),

@@ -42,12 +42,19 @@ AUTOPOINT='intltoolize --automake --copy' autoreconf --force --install --verbose
 # for a bug in intltool.  
 # See https://launchpad.net/bugs/398571 and https://bugs.launchpad.net/bugs/992047
 #
-# TODO: Drop this hack, and bump our intltool version requiement once the issue
+# TODO: Drop this hack, and bump our intltool version requirement once the issue
 #       is fixed in intltool
 
 echo "patching po/Makefile.in.in..."
 sed 's/itlocaledir = $(prefix)\/$(DATADIRNAME)\/locale/itlocaledir = $(datarootdir)\/locale/;s/rm -f .intltool-merge-cache/rm -f .intltool-merge-cache .intltool-merge-cache.lock/' < po/Makefile.in.in > po/Makefile.in.in.tmp
 # -- force didn't work under MacOS
 mv -f po/Makefile.in.in.tmp po/Makefile.in.in
+
+# Fix https://github.com/synfig/synfig/issues/3398
+# For compatibility with MacOS we have to make sure "sh" binary 
+# is found in "/bin/sh", not "/usr/bin/sh"
+sed "s|#!/usr/bin/sh|#!/bin/sh|" < config/install-sh > config/install-sh.tmp
+mv -f config/install-sh.tmp config/install-sh
+chmod +x config/install-sh
 
 echo "Done! Please run ./configure now."

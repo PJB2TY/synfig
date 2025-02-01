@@ -42,7 +42,7 @@ NC='\033[0m' # No Color
 
 if [[ `uname` == "MINGW"* ]]; then # MacOS doesn't support `uname -o` flag
 	PATH="${MINGW_PREFIX}/lib/ccache/bin:${PATH}"
-	PKG_CONFIG_PATH="/opt/mlt-7.2.0/lib/pkgconfig:${PKG_CONFIG_PATH}"
+	PKG_CONFIG_PATH="/opt/mlt-7.28.0/lib/pkgconfig:${PKG_CONFIG_PATH}"
 	echo "ccache enabled"
 fi
 
@@ -182,6 +182,10 @@ studio()
 
 mkall()
 {
+	if [ -d "$BUILD_RELEASE_DIR" ];then
+		chmod -R u+w "$BUILD_RELEASE_DIR"
+		rm -rf "$BUILD_RELEASE_DIR"
+	fi
 	l10n
 	etl
 	core
@@ -191,15 +195,12 @@ mkall()
 do_cleanup()
 {
 	start_stage "Clean up"
-	#echo "Cleaning up..."
-	if [ "${PREFIX}" != "${DEPSPREFIX}" ]; then
-		[ ! -e ${DEPSPREFIX} ] || mv ${DEPSPREFIX} ${DEPSPREFIX}.off
+	if [ -d "$BUILD_RELEASE_DIR" ];then
+		chmod -R u+w "$BUILD_RELEASE_DIR"
 	fi
-	[ ! -e ${SYSPREFIX} ] || mv ${SYSPREFIX} ${SYSPREFIX}.off
-	exit
 }
 
-#trap do_cleanup INT SIGINT SIGTERM EXIT
+trap do_cleanup INT SIGINT SIGTERM SIGKILL EXIT
 
 if [ -z $1 ]; then
 	rm -rf "$PREFIX" || true
@@ -210,4 +211,4 @@ else
 	$@
 fi
 
-#do_cleanup
+do_cleanup

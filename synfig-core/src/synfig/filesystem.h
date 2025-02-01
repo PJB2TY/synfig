@@ -80,7 +80,7 @@ namespace synfig
 			char buffer_;
 
 			ReadStream(FileSystem::Handle file_system);
-			virtual int underflow();
+			int underflow() override;
 			virtual size_t internal_read(void *buffer, size_t size) = 0;
 
 		public:
@@ -102,17 +102,25 @@ namespace synfig
 
 		protected:
 			WriteStream(FileSystem::Handle file_system);
-	        virtual int overflow(int ch);
+			int overflow(int ch) override;
 			virtual size_t internal_write(const void *buffer, size_t size) = 0;
 
 		public:
-			bool write_block(const void *buffer, size_t size)
+			/**
+			 * Write @a size bytes of @a buffer to file.
+			 * @return how many bytes were really written
+			 */
+			size_t write_block(const void *buffer, size_t size)
 			{
 				for(size_t i = 0; i < size; i++)
 					if (!put(((const char*)buffer)[i]).good())
 						return i;
 				return size;
 			}
+			/**
+			 * Write @a size bytes of @a buffer to file.
+			 * @return true if everything was really written
+			 */
 			bool write_whole_block(const void *buffer, size_t size)
 				{ return size == write_block(buffer, size); }
 			bool write_whole_stream(std::streambuf &streambuf)
@@ -197,7 +205,7 @@ namespace synfig
 		Identifier get_identifier(const String &filename) { return Identifier(this, filename); }
 
 		bool directory_create_recursive(const String &dirname);
-		bool remove_recursive(const String &filename);
+		bool remove_recursive(const filesystem::Path& filename);
 
 		static bool copy(Handle from_file_system, const String &from_filename, Handle to_file_system, const String &to_filename);
 		static bool copy_recursive(Handle from_file_system, const String &from_filename, Handle to_file_system, const String &to_filename);
